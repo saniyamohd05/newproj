@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tic Tac Toe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            padding: 20px;
+            color: white;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .game-title {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .cell:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .status {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+
+        .score {
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .reset-btn {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .reset-btn:hover {
+            background: #45a049;
+        }
+
+        .player-x {
+            color: #ff4757;
+        }
+
+        .player-o {
+            color: #2ed573;
+        }
+
+        .win-line {
+            position: absolute;
+            background: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="game-title">Tic Tac Toe</h1>
+    
+    <div class="controls">
+        <select id="gameMode">
+            <option value="human">vs Human</option>
+            <option value="ai">vs AI</option>
+        </select>
+        <select id="difficulty" style="display: none;">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+        </select>
+    </div>
+
+    <div class="status">Player X's turn</div>
+
+    <div class="board">
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+        <div class="cell" data-cell></div>
+    </div>
+
+    <div class="score">
+        X Score: <span id="scoreX">0</span> |
+        O Score: <span id="scoreO">0</span>
+    </div>
+
+    <button class="reset-btn">Reset Game</button>
+
+    <script>
+        class TicTacToe {
+            constructor() {
+                this.board = Array(9).fill('');
+                this.currentPlayer = 'X';
+                this.gameOver = false;
+                this.scores = { X: 0, O: 0 };
+                
+                // DOM elements
+                this.cells = [...document.querySelectorAll('[data-cell]')];
+                this.status = document.querySelector('.status');
+                this.resetButton = document.querySelector('.reset-btn');
+                this.gameModeSelect = document.getElementById('gameMode');
+                this.difficultySelect = document.getElementById('difficulty');
+                
+                // Initialize event listeners
+                this.initializeGame();
+            }
+
+            initializeGame() {
+                this.cells.forEach((cell, index) => {
+                    cell.addEventListener('click', () => this.handleCellClick(index));
+                });
+
+                this.resetButton.addEventListener('click', () => this.resetGame());
+
+                this.gameModeSelect.addEventListener('change', () => {
+                    this.difficultySelect.style.display = 
+                        this.gameModeSelect.value === 'ai' ? 'block' : 'none';
+                    this.resetGame();
+                });
+            }
+
+            handleCellClick(index) {
+                if (this.gameOver || this.board[index] !== '') return;
+
+                this.makeMove(index);
+
+                if (!this.gameOver && this.gameModeSelect.value === 'ai' && this.currentPlayer === 'O') {
+                    setTimeout(() => this.makeAIMove(), 500);
+                }
+            }
+
+            makeMove(index) {
+                this.board[index] = this.currentPlayer;
+                this.cells[index].textContent = this.currentPlayer;
+                this.cells[index].classList.add(`player-${this.currentPlayer.toLowerCase()}`);
+
+                if (this.checkWin()) {
+                    this.handleWin();
+                } else if (this.checkDraw()) {
+                    this.handleDraw();
+                } else {
+                    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+                    this.updateStatus();
+                }
+            }
+
+            makeAIMove() {
+                const difficulty = this.difficultySelect.value;
+                let index;
+
+                switch(difficulty) {
+                    case 'hard':
+                        index = this.getBestMove();
+                        break;
+                    case 'medium':
+                        index = Math.random() < 0.5 ? this.getBestMove() : this.getRandomMove();
+                        break;
+                    case 'easy':
+                        index = this.getRandomMove();
+                        break;
+                }
+
+                if (index !== null) {
+                    this.makeMove(index);
+                }
+            }
+
+            getBestMove() {
+                // Minimax algorithm for unbeatable AI
+                let bestScore = -Infinity;
+                let bestMove = null;
+
+                for (let i = 0; i < 9; i++) {
+                    if (this.board[i] === '') {
+                        this.board[i] = 'O';
+                        let score = this.minimax(this.board, 0, false);
+                        this.board[i] = '';
+
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMove = i;
+                        }
+                    }
+                }
+
+                return bestMove;
+            }
+
+            minimax(board, depth, isMaximizing) {
+                let result = this.checkWinCondition();
+                if (result !== null) {
+                    return result === 'O' ? 1 : result === 'X' ? -1 : 0;
+                }
+
+                if (isMaximizing) {
+                    let bestScore = -Infinity;
+                    for (let i = 0; i < 9; i++) {
+                        if (board[i] === '') {
+                            board[i] = 'O';
+                            let score = this.minimax(board, depth + 1, false);
+                            board[i] = '';
+                            bestScore = Math.max(score, bestScore);
+                        }
+                    }
+                    return bestScore;
+                } else {
+                    let bestScore = Infinity;
+                    for (let i = 0; i < 9; i++) {
+                        if (board[i] === '') {
+                            board[i] = 'X';
+                            let score = this.minimax(board, depth + 1, true);
+                            board[i] = '';
+                            bestScore = Math.min(score, bestScore);
+                        }
+                    }
+                    return bestScore;
+                }
+            }
+
+            getRandomMove() {
+                const emptyCells = this.board
+                    .map((cell, index) => cell === '' ? index : null)
+                    .filter(cell => cell !== null);
+                return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            }
+
+            checkWin() {
+                const winPatterns = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                    [0, 4, 8], [2, 4, 6] // Diagonals
+                ];
+
+                return winPatterns.some(pattern => {
+                    const [a, b, c] = pattern;
+                    return this.board[a] &&
+                           this.board[a] === this.board[b] &&
+                           this.board[a] === this.board[c];
+                });
+            }
+
+            checkWinCondition() {
+                if (this.checkWin()) {
+                    return this.currentPlayer;
+                }
+                if (this.checkDraw()) {
+                    return 'draw';
+                }
+                return null;
+            }
+
+            checkDraw() {
+                return this.board.every(cell => cell !== '');
+            }
+
+            handleWin() {
+                this.gameOver = true;
+                this.scores[this.currentPlayer]++;
+                this.updateScore();
+                this.status.textContent = `Player ${this.currentPlayer} wins!`;
+            }
+
+            handleDraw() {
+                this.gameOver = true;
+                this.status.textContent = "It's a draw!";
+            }
+
+            updateStatus() {
+                this.status.textContent = `Player ${this.currentPlayer}'s turn`;
+            }
+
+            updateScore() {
+                document.getElementById('scoreX').textContent = this.scores.X;
+                document.getElementById('scoreO').textContent = this.scores.O;
+            }
+
+            resetGame() {
+                this.board = Array(9).fill('');
+                this.cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.classList.remove('player-x', 'player-o');
+                });
+                this.currentPlayer = 'X';
+                this.gameOver = false;
+                this.updateStatus();
+            }
+        }
+
+        // Initialize the game
+        const game = new TicTacToe();
+    </script>
+</body>
+</html>
